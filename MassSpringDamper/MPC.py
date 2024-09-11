@@ -162,6 +162,54 @@ def JaxMPC(m=1, k=1, b=1, draw=True):
         plt.show()
     return x
 
+def JaxMPCTracking(traj, m=1, k=1, b=1, draw=True):
+    dt = 0.01
+    t = np.arange(0, 10, dt)
+    x = np.zeros_like(t)
+    msd = MassSpringDamper(m, k, b, 0)
+    def model(p, v, u, dt):
+        a = (u - b * v - k * p) / m
+        v += a * dt
+        p += v * dt
+        return p, v
+    def objective(u, t, dt):
+        current_state = [msd.position, msd.velocity]
+        horizon = len(u)
+        Q = 1000
+        R = 0.001
+        cost = 0
+        for i in range(horizon):
+            current_state = model(current_state[0], current_state[1], u[i], dt)
+            cost +=  Q * (traj(t+dt*i) - current_state[0]) ** 2 + R * u[i] ** 2
+        return cost
+    # compiled_grad = jax.jit(jax.grad(objective))
+    # MPC
+    for i in range(len(t)):
+        # objective function
+        def nlopt_objective(u, g):
+            cost = objective(u, t[i], dt)
+            # if g.size > 0:
+            #     g[:] = np.array(compiled_grad(u))
+            return cost
+        horizon = 16
+        # optimizer settings
+        opt = nlopt.opt(nlopt.LN_AUGLAG, horizon)
+        opt.set_min_objective(nlopt_objective)  # Using JAX gradient
+        opt.set_xtol_rel(1e-4)
+        opt.set_lower_bounds([-100] * horizon)
+        opt.set_upper_bounds([100] * horizon)
+        u = opt.optimize(np.array([random.uniform(-1, 1) for _ in range(horizon)]))
+        force = u[0]
+        x[i] = msd.step(force, dt)
+    if draw:
+        plt.plot(t, x)
+        plt.plot(t, traj(t), 'r--')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Position (m)')
+        plt.title('Model Predictive Control')
+        plt.show()
+    return x
+
 # tested on M2 MacBook Air
 # MPC time:         7.536072254180908
 # autograd time:    5.152461051940918
@@ -175,4 +223,9 @@ if __name__ == "__main__":
     print('Elapsed time: ', time.time() - t)
     t = time.time()
     JaxMPC(1,1,0, draw=False)
+    print('Elapsed time: ', time.time() - t)
+    t = time.time()
+    def sineTraj(t):
+        return np.sin(t) * 10
+    JaxMPCTracking(sineTraj, 1,1,0, draw=False)
     print('Elapsed time: ', time.time() - t)
