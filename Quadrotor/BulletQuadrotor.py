@@ -48,6 +48,7 @@ class BulletQuadrotor:
         # p.applyExternalTorque(self.robotID, 1, [0, 0, -self.ct*throttle[1]], p.LINK_FRAME)
         # p.applyExternalTorque(self.robotID, 2, [0, 0, self.ct*throttle[2]], p.LINK_FRAME)
         # p.applyExternalTorque(self.robotID, 3, [0, 0, self.ct*throttle[3]], p.LINK_FRAME)
+        # p.applyExternalTorque(self.robotID, -1, 0.4*np.random.randn(3), p.LINK_FRAME)
         p.stepSimulation()
     def getPosition(self):
         '''return 3D vector of position'''
@@ -101,25 +102,30 @@ def quaternionError(q1, q2):
     ])
 
 if __name__ == "__main__":
-    robot = BulletQuadrotor(headless=True)
+    robot = BulletQuadrotor(headless=False)
     time.sleep(1)
     dt = 1./500.
-    tmax = 20
+    tmax = 5
     t = np.arange(0, tmax, dt)
     x = np.matrix(np.zeros((3, len(t))))
     rateCtrlr = RateController(Kp=3, Kd=0.001, Ki=0.01)
-    attiCtrlr = AttitudeController(Kp=5, Kd=0.001, Ki=0)
+    attiCtrlr = AttitudeController(Kp=3, Kd=0.001, Ki=0)
     posiCtrlr = PositionController(Kp=15, Kd=6, Ki=3)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+    trajectory = []
+    atti_traj = []
     for i in range(int(tmax/dt)):
-        posiDesired = np.array([1, 1, 1])
+        posiDesired = np.array([sin(i*dt), cos(i*dt), 1])
+        trajectory.append(posiDesired)
         # position controller
         posiMeas = robot.getPosition()
         x[:,i] = np.reshape(posiMeas, (3,1))
         posiError = posiDesired - posiMeas
         zforce, attiDesired = posiCtrlr.control(posiError, dt)
+        attiDesired = euler2Quaternion(0, -pi/6, 0)
         # attitude controller
         attiMeas = robot.getOrientation()
+        atti_traj.append(quaternion2Euler(attiMeas))
         attiError = quaternionError(attiDesired, attiMeas)
         eulerAttiError = quaternion2Euler(attiError)
         rateDesired = attiCtrlr.control(eulerAttiError, dt)
@@ -130,13 +136,21 @@ if __name__ == "__main__":
         throttle = robot.controlAllocation(np.array([zforce, torque[0], torque[1], torque[2]]))
         robot.step(throttle)
         time.sleep(dt)
-    plt.plot(t, x[0,:].transpose(), 'r')
-    plt.plot(t, x[1,:].transpose(), 'g')
-    plt.plot(t, x[2,:].transpose(), 'b')
-    plt.plot(t, np.ones_like(t) * posiDesired[0], 'r--')
-    plt.plot(t, np.ones_like(t) * posiDesired[1], 'g--')
-    plt.plot(t, np.ones_like(t) * posiDesired[2], 'b--')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Position (m)')
-    plt.show()
     p.disconnect()
+    attiDesired = euler2Quaternion(0, pi/6, 0)
+    # plt.plot(t, attiDesired[1]*np.ones_like(t), 'k--')
+    pitch_traj = np.array(atti_traj)[:,1]
+    plt.plot(t, pitch_traj, 'k')
+    # plt.plot(t, x[0,:].transpose(), 'r')
+    # plt.plot(t, x[1,:].transpose(), 'g')
+    # plt.plot(t, x[2,:].transpose(), 'b')
+    # plt.plot(t, np.array(trajectory)[:,0], 'r--')
+    # plt.plot(t, np.array(trajectory)[:,1], 'g--')
+    # plt.plot(t, np.array(trajectory)[:,2], 'b--')
+    # plt.plot(t, np.ones_like(t) * posiDesired[0], 'r--')
+    # plt.plot(t, np.ones_like(t) * posiDesired[1], 'g--')
+    # plt.plot(t, np.ones_like(t) * posiDesired[2], 'b--')
+    plt.xlabel('Time (s)')
+    # plt.ylabel('Position (m)')
+    plt.ylabel('Pitch (rad)')
+    plt.show()
