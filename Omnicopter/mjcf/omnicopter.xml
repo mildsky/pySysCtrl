@@ -1,0 +1,49 @@
+<mujoco model="carosh">
+    <compiler angle="radian" />
+    <option timestep="0.001" >
+    </option>
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4" />
+        <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance="0" />
+        <material name="skyblue" rgba="0.64 0.835 0.97 1" />
+        <material name="gray" rgba="0.63 0.61 0.615 1" />
+        <material name="pink" rgba="0.89 0.61 0.61 1" />
+        <material name="blue" rgba="0.18 0.33 0.92 1" />
+        <material name="green" rgba="0.7 0.84 0.725 0.8" />
+        <material name="purple" rgba="0.83 0.78 0.93 0.8" />
+        <material name="orange" rgba="0.95 0.65 0.31 1" />
+        <material name="black" rgba="0 0 0 1" />
+        <material name="white" rgba="1 1 1 1" />
+    </asset>
+    <contact>
+        <exclude body1="robot" body2="arm1" />
+    </contact>
+    <worldbody>
+        <light name="sun" pos="-20 0 10" dir="1 0 -0.1" diffuse="1 1 1" specular="0.5 0.5 0.5" />
+        <geom name="ground" type="plane" pos="0 0 0" size="30 30 0.01" material="grid" />
+        <!-- 30 degrees: 0.9659258  0.258819    0 0 -->
+        <!-- 45 degrees: 0.9238795  0.3826834   0 0 -->
+        <!-- 60 degrees: 0.8660254  0.5         0 0 -->
+        <!-- 90 degrees: 0.7071068  0.7071068   0 0 -->
+        <body name="robot" pos="0 0 .3" quat="1 0 0 0">
+            <freejoint name="base_freejoint" />
+            <inertial pos="0 0 0" quat="1 0 0 0" mass="1.0" diaginertia="0.1 0.1 0.1"/>
+            <geom type="box" size="0.05 0.05 0.05" material="black" />
+            <body name="arm1" pos="0 0 0" quat="1 0 0 0">
+                <inertial pos="0 0 0" mass="0.1" />
+                <geom type="capsule" fromto="0 0 0 0.3 0.3 0.3" size="0.025"/>
+                <site name="rotor1_site" pos="0 0 0.1" />
+                <body name="rotor1" pos="0.3 0.3 0.3" quat="1 0 0 0">
+                    <inertial pos="0 0 0" mass="0.005" />
+                    <geom type="cylinder" size="0.25 0.01"/>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+    <actuator>
+        <!-- rotor velocity controller -->
+        <motor name="rotor1" site="rotor1_site" ctrllimited="true" ctrlrange="0 10" gear="0 0 1 0 0 .1" />
+    </actuator>
+    <sensor>
+    </sensor>
+</mujoco>
